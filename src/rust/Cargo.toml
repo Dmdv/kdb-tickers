@@ -17,6 +17,7 @@ futures-util = "0.3"
 
 # For KDB+ integration, we'll use raw TCP connections
 bytes = "1.9"
+native-tls = "0.2"
 
 [dev-dependencies]
 mockall = "0.13"

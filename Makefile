@@ -143,6 +143,11 @@ analytics:
 		fi \
 	done
 
+.PHONY: websocket
+websocket: kdb-start ## Start KDB+ WebSocket server with TLS support
+	@echo "$(GREEN)Starting KDB+ WebSocket server...$(NC)"
+	q src/q/websocket_server.q -p 5002
+
 # Maintenance targets
 .PHONY: clean
 clean:

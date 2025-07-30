@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KDB+ WebSocket Client Example</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        #messages { height: 300px; overflow-y: scroll; background: #f5f5f5; padding: 10px; }
+        .message { margin: 5px 0; }
+        .sent { color: #0066cc; }
+        .received { color: #009900; }
+        .error { color: #cc0000; }
+        button { margin: 5px; padding: 8px 15px; cursor: pointer; }
+        input, select { margin: 5px; padding: 5px; }
+        .status { padding: 10px; border-radius: 3px; margin: 10px 0; }
+        .connected { background: #d4edda; color: #155724; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>KDB+ WebSocket Client Example</h1>
+        
+        <!-- Connection Section -->
+        <div class="section">
+            <h3>Connection</h3>
+            <label>
+                Server URL: 
+                <input type="text" id="serverUrl" value="wss://localhost:5002" style="width: 200px;">
+            </label>
+            <br>
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+            <div id="status" class="status disconnected">Disconnected</div>
+        </div>
+
+        <!-- Subscription Section -->
+        <div class="section">
+            <h3>Subscriptions</h3>
+            <label>
+                Table: 
+                <select id="tableSelect">
+                    <option value="ticker">ticker</option>
+                    <option value="trades">trades</option>
+                    <option value="bars">bars</option>
+                </select>
+            </label>
+            <button onclick="subscribe()">Subscribe</button>
+            <button onclick="unsubscribe()">Unsubscribe</button>
+        </div>
+
+        <!-- Query Section -->
+        <div class="section">
+            <h3>Queries</h3>
+            <label>
+                Query: 
+                <input type="text" id="queryInput" value="select count i by sym from ticker" style="width: 300px;">
+            </label>
+            <button onclick="sendQuery()">Execute</button>
+            <br><br>
+            <label>Quick Queries:</label>
+            <button onclick="setQuery('select last 10 from ticker')">Last 10 Tickers</button>
+            <button onclick="setQuery('select count i by sym from ticker')">Count by Symbol</button>
+            <button onclick="setQuery('select avg bid, avg ask by sym from ticker')">Avg Bid/Ask</button>
+        </div>
+
+        <!-- Analytics Section -->
+        <div class="section">
+            <h3>Analytics</h3>
+            <label>
+                Function: 
+                <select id="analyticsSelect">
+                    <option value="vwap">VWAP</option>
+                    <option value="spread">Spread</option>
+                    <option value="volatility">Volatility</option>
+                    <option value="volume">Volume</option>
+                </select>
+            </label>
+            <button onclick="runAnalytics()">Run</button>
+        </div>
+
+        <!-- Messages Section -->
+        <div class="section">
+            <h3>Messages</h3>
+            <button onclick="clearMessages()">Clear</button>
+            <div id="messages"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let messageCount = 0;
+
+        function addMessage(message, type = 'received') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            messageCount++;
+            if (messageCount > 100) {
+                // Keep only last 100 messages
+                messagesDiv.removeChild(messagesDiv.firstChild);
+                messageCount--;
+            }
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            if (connected) {
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'status connected';
+            } else {
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.className = 'status disconnected';
+            }
+        }
+
+        function connect() {
+            const url = document.getElementById('serverUrl').value;
+            
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = function(event) {
+                    addMessage('Connected to KDB+ WebSocket server', 'received');
+                    updateStatus(true);
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        const formatted = JSON.stringify(data, null, 2);
+                        addMessage('Received: ' + formatted, 'received');
+                    } catch (e) {
+                        addMessage('Received: ' + event.data, 'received');
+                    }
+                };
+
+                ws.onclose = function(event) {
+                    addMessage('Connection closed', 'error');
+                    updateStatus(false);
+                    ws = null;
+                };
+
+                ws.onerror = function(error) {
+                    addMessage('WebSocket error: ' + error, 'error');
+                    updateStatus(false);
+                };
+
+            } catch (e) {
+                addMessage('Connection error: ' + e.message, 'error');
+                updateStatus(false);
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                updateStatus(false);
+                addMessage('Disconnected by user', 'sent');
+            }
+        }
+
+        function sendMessage(message) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('Not connected to server', 'error');
+                return false;
+            }
+            
+            const jsonMessage = JSON.stringify(message);
+            ws.send(jsonMessage);
+            addMessage('Sent: ' + jsonMessage, 'sent');
+            return true;
+        }
+
+        function subscribe() {
+            const table = document.getElementById('tableSelect').value;
+            sendMessage({
+                action: 'subscribe',
+                table: table
+            });
+        }
+
+        function unsubscribe() {
+            const table = document.getElementById('tableSelect').value;
+            sendMessage({
+                action: 'unsubscribe',
+                table: table
+            });
+        }
+
+        function sendQuery() {
+            const query = document.getElementById('queryInput').value;
+            sendMessage({
+                action: 'query',
+                query: query
+            });
+        }
+
+        function setQuery(query) {
+            document.getElementById('queryInput').value = query;
+        }
+
+        function runAnalytics() {
+            const analytics = document.getElementById('analyticsSelect').value;
+            sendMessage({
+                action: 'analytics',
+                analytics: analytics
+            });
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+            messageCount = 0;
+        }
+
+        // Initialize
+        updateStatus(false);
+        addMessage('WebSocket client initialized. Click Connect to start.', 'received');
+    </script>
+</body>
+</html> 
