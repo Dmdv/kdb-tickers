@@ -1,0 +1,55 @@
+[Unit]
+Description=KDB+ Real-Time Market Data Platform
+Documentation=https://github.com/yourusername/kdb-tickers
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=kdb
+Group=kdb
+WorkingDirectory=/opt/kdb-ticker
+
+# Environment variables
+Environment="RUST_LOG=info"
+Environment="KDB_HOST=localhost"
+Environment="KDB_PORT=5001"
+Environment="SYMBOL=ethusdt"
+
+# Start KDB+ server first
+ExecStartPre=/bin/bash -c 'echo "Starting KDB+ server..."'
+ExecStartPre=/usr/bin/timeout 5 /bin/bash -c 'until nc -z localhost 5001; do q /opt/kdb-ticker/src/q/tick.q -p 5001 & sleep 1; done'
+
+# Start the Rust WebSocket client
+ExecStart=/opt/kdb-ticker/target/release/kdb-ticker-client
+
+# Stop commands
+ExecStop=/bin/bash -c 'pkill -f "q.*tick.q" || true'
+ExecStop=/bin/bash -c 'pkill -f "kdb-ticker-client" || true'
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/kdb-ticker/logs /opt/kdb-ticker/data
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryLimit=2G
+CPUQuota=80%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kdb-ticker
+
+[Install]
+WantedBy=multi-user.target 

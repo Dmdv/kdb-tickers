@@ -1,0 +1,23 @@
+[package]
+name = "kdb-ticker-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.47", features = ["full"] }
+tokio-tungstenite = { version = "0.27", features = ["native-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# url = "2.5" # Not needed - tokio-tungstenite handles URLs
+futures-util = "0.3"
+
+# For KDB+ integration, we'll use raw TCP connections
+bytes = "1.9"
+
+[dev-dependencies]
+mockall = "0.13"
+tokio-test = "0.4"

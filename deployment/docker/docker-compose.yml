@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # KDB+ Server
+  kdb-server:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+    container_name: kdb-server
+    hostname: kdb-server
+    environment:
+      - KDB_HOST=localhost
+      - KDB_PORT=5001
+      - KDB_DATA_PATH=/app/data
+      - KDB_LOG_PATH=/app/logs
+      - KDB_ARCHIVE_PATH=/app/archive
+    volumes:
+      - kdb-data:/app/data
+      - kdb-logs:/app/logs
+      - kdb-archive:/app/archive
+    ports:
+      - "5001:5001"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "5001"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ETH/USDT ticker client
+  ticker-ethusdt:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+    container_name: ticker-ethusdt
+    environment:
+      - SYMBOL=ethusdt
+      - KDB_HOST=kdb-server
+      - KDB_PORT=5001
+      - RUST_LOG=info
+      - WAIT_FOR_SERVICES=kdb-server:5001
+    depends_on:
+      kdb-server:
+        condition: service_healthy
+    volumes:
+      - kdb-logs:/app/logs
+    restart: unless-stopped
+
+  # BTC/USDT ticker client
+  ticker-btcusdt:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+    container_name: ticker-btcusdt
+    environment:
+      - SYMBOL=btcusdt
+      - KDB_HOST=kdb-server
+      - KDB_PORT=5001
+      - RUST_LOG=info
+      - WAIT_FOR_SERVICES=kdb-server:5001
+    depends_on:
+      kdb-server:
+        condition: service_healthy
+    volumes:
+      - kdb-logs:/app/logs
+    restart: unless-stopped
+
+  # BNB/USDT ticker client
+  ticker-bnbusdt:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+    container_name: ticker-bnbusdt
+    environment:
+      - SYMBOL=bnbusdt
+      - KDB_HOST=kdb-server
+      - KDB_PORT=5001
+      - RUST_LOG=info
+      - WAIT_FOR_SERVICES=kdb-server:5001
+    depends_on:
+      kdb-server:
+        condition: service_healthy
+    volumes:
+      - kdb-logs:/app/logs
+    restart: unless-stopped
+
+  # Monitoring with Prometheus node exporter
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: kdb-node-exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+
+  # Log aggregation (optional)
+  logs:
+    image: busybox
+    container_name: kdb-logs
+    volumes:
+      - kdb-logs:/logs
+    command: tail -f /logs/kdb-server.log
+
+volumes:
+  kdb-data:
+    driver: local
+  kdb-logs:
+    driver: local
+  kdb-archive:
+    driver: local
+
+networks:
+  default:
+    name: kdb-network 

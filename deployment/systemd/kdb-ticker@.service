@@ -1,0 +1,49 @@
+[Unit]
+Description=KDB+ Ticker Client for %i
+Documentation=https://github.com/yourusername/kdb-tickers
+After=network-online.target kdb-server.service
+Wants=network-online.target
+Requires=kdb-server.service
+PartOf=kdb-ticker.target
+
+[Service]
+Type=simple
+User=kdb
+Group=kdb
+WorkingDirectory=/opt/kdb-ticker
+
+# Environment variables - %i is replaced with the instance name (symbol)
+Environment="RUST_LOG=info"
+Environment="KDB_HOST=localhost"
+Environment="KDB_PORT=5001"
+Environment="SYMBOL=%i"
+
+# Start the Rust WebSocket client for specific symbol
+ExecStart=/opt/kdb-ticker/target/release/kdb-ticker-client
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/kdb-ticker/logs
+
+# Resource limits per instance
+LimitNOFILE=8192
+LimitNPROC=512
+MemoryLimit=512M
+CPUQuota=20%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kdb-ticker-%i
+
+[Install]
+WantedBy=kdb-ticker.target 

@@ -1,0 +1,45 @@
+[Unit]
+Description=KDB+ Server for Ticker System
+Documentation=https://github.com/yourusername/kdb-tickers
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kdb
+Group=kdb
+WorkingDirectory=/opt/kdb-ticker
+
+# Pre-start setup
+ExecStartPre=/bin/mkdir -p /opt/kdb-ticker/logs /opt/kdb-ticker/data
+ExecStartPre=/bin/chown -R kdb:kdb /opt/kdb-ticker/logs /opt/kdb-ticker/data
+
+# Start KDB+ with tick.q
+ExecStart=/usr/local/bin/q /opt/kdb-ticker/src/q/tick.q -p 5001 -w 4000
+
+# Restart policy
+Restart=always
+RestartSec=5
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/kdb-ticker/logs /opt/kdb-ticker/data
+PrivateDevices=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryLimit=4G
+CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kdb-server
+
+[Install]
+WantedBy=multi-user.target 

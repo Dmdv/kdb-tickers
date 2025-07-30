@@ -1,0 +1,8 @@
+[Unit]
+Description=KDB+ Ticker System Target
+Documentation=https://github.com/yourusername/kdb-tickers
+Requires=kdb-server.service
+After=kdb-server.service
+
+[Install]
+WantedBy=multi-user.target 
